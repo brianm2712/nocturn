@@ -25,11 +25,14 @@ targets:
         NSAppTransportSecurity:
           NSAllowsLocalNetworking: true
         ITSAppUsesNonExemptEncryption: false
+        LSApplicationCategoryType: public.app-category.developer-tools
         UILaunchScreen: {}
     settings:
       PRODUCT_BUNDLE_IDENTIFIER: com.brianmurphy.nocturn
-      # Ad-hoc signing for local dev/test. At archive time, replace with your
-      # real team: DEVELOPMENT_TEAM: <TEAM_ID> and remove CODE_SIGN_IDENTITY.
+      DEVELOPMENT_TEAM: RPCACN9AU3
+      # Ad-hoc signing keeps `xcodebuild test` working without a provisioning
+      # profile. Archiving for the App Store needs an Apple Distribution cert:
+      # drop this line so Xcode signs with the real identity.
       CODE_SIGN_IDENTITY: "-"
       ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
   NocturnTests:
