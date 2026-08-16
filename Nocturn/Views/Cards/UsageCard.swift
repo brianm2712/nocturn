@@ -21,7 +21,7 @@ struct UsageCard: View {
             .frame(height: 56)
             HStack(alignment: .firstTextBaseline) {
                 if let cost = state.totalCost {
-                    Text(cost, format: .currency(code: "USD"))
+                    Text(cost, format: .currency(code: "EUR"))
                         .font(Theme.bigNumber).foregroundStyle(Theme.money)
                 }
                 Spacer()
