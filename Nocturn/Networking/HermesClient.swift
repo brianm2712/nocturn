@@ -56,6 +56,23 @@ actor HermesClient {
     func systemStats() async throws -> SystemStats { try await get("api/system/stats", as: SystemStats.self) }
     func errorLogs() async throws -> LogsResponse { try await get("api/logs?level=ERROR&lines=50", as: LogsResponse.self) }
 
+    func profiles() async throws -> [ProfileInfo] {
+        let resp = try await get("api/profiles", as: ProfilesResponse.self)
+        return resp.profiles
+    }
+
+    func cronJobRuns(jobId: String, profile: String? = nil) async throws -> [SessionInfo] {
+        var path = "api/cron/jobs/\(jobId)/runs?limit=20"
+        if let profile { path += "&profile=\(profile)" }
+        let resp = try await get(path, as: CronRunsResponse.self)
+        return resp.runs
+    }
+
+    func sessionMessages(sessionId: String) async throws -> [SessionMessage] {
+        let resp = try await get("api/sessions/\(sessionId)/messages?limit=500&order=latest", as: SessionMessagesResponse.self)
+        return resp.messages
+    }
+
     /// The Tasks & Cron card shows a kanban row only when the kanban
     /// dashboard plugin is installed. `/api/dashboard/plugins` is the
     /// documented discovery endpoint.

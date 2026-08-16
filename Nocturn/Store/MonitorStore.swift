@@ -41,7 +41,8 @@ final class MonitorStore {
         async let usage: Void = refreshUsage()
         async let errors: Void = refreshErrors()
         async let cron: Void = refreshCron()
-        _ = await (health, agents, usage, errors, cron)
+        async let profiles: Void = refreshProfiles()
+        _ = await (health, agents, usage, errors, cron, profiles)
     }
 
     private func refreshHealth() async {
@@ -50,6 +51,7 @@ final class MonitorStore {
             let creds = try await client.credentials()
             let sys = try? await client.systemStats()
             state.gatewayUp = status.gatewayRunning ?? false
+            state.gatewayState = status.gatewayState
             state.providers = StateReducer.providerHealth(from: creds)
             state.cpuPercent = sys?.cpuPercent
             state.memoryUsedBytes = sys?.memoryUsedBytes
@@ -90,12 +92,28 @@ final class MonitorStore {
         state.kanbanInstalled = await client.kanbanInstalled()
         do {
             let jobs = try await client.cronJobs()
-            state.cron = jobs.map {
-                CronRow(id: $0.id, name: $0.name ?? $0.id,
-                        schedule: $0.schedule ?? "", nextRun: $0.nextRun,
-                        paused: $0.paused ?? false)
-            }
+            state.cron = StateReducer.cronRows(from: jobs)
             state.cronState = .loaded(.now)
         } catch { state.cronState = .error(error.localizedDescription) }
+    }
+
+    private func refreshProfiles() async {
+        do {
+            let profiles = try await client.profiles()
+            state.profiles = StateReducer.profileRows(from: profiles)
+            state.profilesState = .loaded(.now)
+        } catch { state.profilesState = .error(error.localizedDescription) }
+    }
+
+    // On-demand fetch for cron job detail view
+    func loadCronRuns(jobId: String, profile: String? = nil) async -> [SessionInfo] {
+        do { return try await client.cronJobRuns(jobId: jobId, profile: profile) }
+        catch { return [] }
+    }
+
+    // On-demand fetch for session messages (cron run output)
+    func loadMessages(sessionId: String) async -> [SessionMessage] {
+        do { return try await client.sessionMessages(sessionId: sessionId) }
+        catch { return [] }
     }
 }

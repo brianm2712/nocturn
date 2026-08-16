@@ -33,16 +33,31 @@ struct ErrorEvent: Identifiable, Equatable {
     var message: String
 }
 
-struct CronRow: Identifiable, Equatable {
+struct CronRow: Identifiable, Equatable, Hashable {
     var id: String
     var name: String
     var schedule: String
     var nextRun: Date?
     var paused: Bool
+    var profile: String?
+    var lastStatus: String?
+    var lastError: String?
+}
+
+struct ProfileRow: Identifiable, Equatable {
+    var id: String { name }
+    var name: String
+    var model: String?
+    var provider: String?
+    var gatewayRunning: Bool?
+    var isDefault: Bool
+    var skillCount: Int?
+    var description: String?
 }
 
 struct DashboardState: Equatable {
     var gatewayUp: Bool?
+    var gatewayState: String?
     var providers: [ProviderHealth] = []
     var cpuPercent: Double?
     var memoryUsedBytes: Int64?
@@ -53,6 +68,7 @@ struct DashboardState: Equatable {
     var totalTokens: Int?
     var errors: [ErrorEvent] = []
     var cron: [CronRow] = []
+    var profiles: [ProfileRow] = []
     var kanbanInstalled: Bool = false
 
     var healthState: LoadState = .loading
@@ -60,6 +76,7 @@ struct DashboardState: Equatable {
     var usageState: LoadState = .loading
     var errorsState: LoadState = .loading
     var cronState: LoadState = .loading
+    var profilesState: LoadState = .loading
 }
 
 extension UsageDay: Equatable {
@@ -68,15 +85,6 @@ extension UsageDay: Equatable {
 
 // Pure merge helpers — unit-testable without networking.
 enum StateReducer {
-    static func agentRows(from sessions: [SessionInfo], now: Date = .now) -> [AgentRow] {
-        sessions.map { s in
-            AgentRow(id: s.id,
-                     title: s.title ?? s.id,
-                     source: s.source ?? "unknown",
-                     lastActivity: s.updatedAt,
-                     isActive: s.updatedAt.map { now.timeIntervalSince($0) < 300 } ?? false)
-        }
-    }
 
     static func providerHealth(from pool: CredentialPoolResponse) -> [ProviderHealth] {
         pool.providers.map { p in
@@ -84,6 +92,41 @@ enum StateReducer {
             return ProviderHealth(name: p.provider,
                                   ok: bad == nil,
                                   detail: bad?.lastErrorCode.map(String.init))
+        }
+    }
+
+    static func profileRows(from profiles: [ProfileInfo]) -> [ProfileRow] {
+        profiles.map { p in
+            ProfileRow(name: p.name,
+                       model: p.model,
+                       provider: p.provider,
+                       gatewayRunning: p.gatewayRunning,
+                       isDefault: p.isDefault ?? false,
+                       skillCount: p.skillCount,
+                       description: p.description)
+        }
+    }
+
+    static func cronRows(from jobs: [CronJob]) -> [CronRow] {
+        jobs.map { j in
+            CronRow(id: j.id,
+                    name: j.name ?? j.id,
+                    schedule: j.scheduleDisplay ?? j.schedule ?? "",
+                    nextRun: j.nextRunAt,
+                    paused: !(j.enabled ?? true),
+                    profile: j.profileName ?? j.profile,
+                    lastStatus: j.lastStatus,
+                    lastError: j.lastError)
+        }
+    }
+
+    static func agentRows(from sessions: [SessionInfo], now: Date = .now) -> [AgentRow] {
+        sessions.map { s in
+            AgentRow(id: s.id,
+                     title: s.title ?? s.id,
+                     source: s.source ?? "unknown",
+                     lastActivity: s.lastActive,
+                     isActive: s.isActive ?? (s.lastActive.map { now.timeIntervalSince($0) < 300 } ?? false))
         }
     }
 }
